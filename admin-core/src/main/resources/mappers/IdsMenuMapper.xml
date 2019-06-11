@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.admin.mapper.IdsMenuMapper">
+    <resultMap id="BaseResultMap" type="org.admin.model.IdsMenu">
+        <id column="id" property="id" jdbcType="INTEGER"/>
+        <result column="path" property="path" jdbcType="VARCHAR"/>
+        <result column="component" property="component" jdbcType="VARCHAR"/>
+        <result column="icon" property="icon" jdbcType="VARCHAR"/>
+        <result column="redirect" property="redirect" jdbcType="VARCHAR"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="parentId" property="parentId" jdbcType="INTEGER"/>
+<!--        <association property="meta" javaType="org.admin.model.IdsMeta">
+            <result column="name" property="title"/>
+            <collection property="roles" ofType="org.admin.model.IdsRole">
+                <id column="roleId" property="id"/>
+                <result column="rolename" property="name"/>
+                <result column="rolenamezh" property="nameZh"/>
+            </collection>
+        </association>-->
+        <!--二级目录-->
+        <collection property="children" ofType="org.admin.model.IdsMenu">
+            <id column="id_2" property="id"/>
+            <result column="path_2" property="path" jdbcType="VARCHAR"/>
+            <result column="component_2" property="component" jdbcType="VARCHAR"/>
+            <result column="icon_2" property="icon" jdbcType="VARCHAR"/>
+            <!--<result column="redirect_2" property="name" jdbcType="VARCHAR"/>-->
+            <result column="name_2" property="name" jdbcType="VARCHAR"/>
+<!--            <association property="meta" javaType="org.admin.model.IdsMeta">
+                <result column="title_2" property="title"/>
+                <collection property="roles" ofType="org.admin.model.IdsRole">
+                    <id column="roleId" property="id"/>
+                    <result column="rolename" property="name"/>
+                    <result column="rolenamezh" property="nameZh"/>
+                </collection>
+            </association>-->
+            <collection property="children" ofType="org.admin.model.IdsMenu">
+                <id column="id_3" property="id"/>
+                <result column="name_3" property="name" jdbcType="VARCHAR"/>
+            </collection>
+        </collection>
+    </resultMap>
+
+    <resultMap id="menuRolResultMape" type="org.admin.model.IdsMenu" extends="BaseResultMap">
+        <collection property="roles" ofType="org.admin.model.IdsRole">
+            <id column="roleId" property="id"/>
+            <result column="rolename" property="name"/>
+            <result column="rolenamezh" property="nameZh"/>
+        </collection>
+    </resultMap>
+
+    <select id="getAllMenu" resultMap="menuRolResultMape">
+        select m.*, r.id as roleid, r.name as rolename, r.nameZh as rolenamezh
+          from p_menu m
+          left join p_menu_role mr on m.id = mr.menuid
+          left join p_role r on mr.roleid = r.id
+         order by m.id desc
+    </select>
+
+    <select id="getMenusByUserId" resultMap="BaseResultMap">
+         select
+            m_1.id,
+            m_1.name,
+            m_1.path,
+            m_1.component,
+            m_1.icon,
+            m_1.redirect,
+            m_1.icon,
+            m_2.name as name_2,
+            m_2.path as path_2,
+            m_2.component as component_2,
+            m_2.icon as icon_2,
+            m_2.name as name_2,
+            m_2.path as path_2,
+            m_2.icon as path_2
+       from p_menu m_1, p_menu m_2
+      where m_1.id = m_2.parentId
+        and m_2.id in (select mr.menuid
+                        from p_user_role ur, p_menu_role mr
+                       where ur.roleid = mr.roleid
+                         and ur.userid = #{userId})
+      order by m_1.id, m_2.id
+    </select>
+    <select id="menuTree" resultMap="BaseResultMap">
+        select m_1.id,
+          m_1.name,
+          m_2.id as id_2,
+          m_2.name as name_2,
+          m_3.id as id_3,
+          m_3.name as name_3
+         from p_menu m_1, p_menu m_2, p_menu m_3
+        where m_1.id = m_2.parentId
+          and m_2.id = m_3.parentId
+    </select>
+    <select id="getMenusByRoleId" resultType="Long">
+        SELECT menuid from p_menu_role WHERE roleid = #{roleId}
+    </select>
+
+    <insert id="addMenu" parameterType="org.admin.model.IdsMenu">
+        insert into P_MENU
+        (ID, NAME, PATH, COMPONENT, REDIRECT, PARENTID, ICON)
+        values
+        (#{id},#{name},#{path},#{component},#{redirect},#{parentId},#{icon})
+    </insert>
+
+    <update id="updateMenu" parameterType="org.admin.model.IdsMenu">
+        update P_MENU
+        <set>
+            <if test="name != null">
+                name = #{name,jdbcType=VARCHAR},
+            </if>
+            <if test="path != null">
+                path = #{path,jdbcType=VARCHAR},
+            </if>
+            <if test="component != null">
+                component = #{component,jdbcType=VARCHAR},
+            </if>
+            <if test="icon != null">
+                icon = #{icon,jdbcType=VARCHAR},
+            </if>
+            <if test="parentId != null">
+                parentId = #{parentId,jdbcType=VARCHAR},
+            </if>
+        </set>
+        where id = #{id,jdbcType=INTEGER}
+    </update>
+
+    <delete id="deleteMenu" parameterType="Long">
+        DELETE FROM p_menu where id=#{id}
+    </delete>
+
+    <select id="getMenus" resultMap="BaseResultMap">
+        <bind name="name" value="'%' + name + '%'" />
+        select * from p_menu
+        <if test="name != ''">
+            where name like #{name}
+        </if>
+    </select>
+
+    <select id="roles" resultType="org.admin.model.IdsRole">
+        SELECT * FROM p_role
+    </select>
+
+    <delete id="deleteRoleById" parameterType="Long">
+        DELETE FROM p_role WHERE id=#{roleId}
+    </delete>
+
+    <insert id="addNewRole">
+        INSERT INTO p_role(id,name, nameZh)
+          SELECT MENU_ROLE_SEQUENCE.NEXTVAL, t.*
+            FROM (SELECT #{role}, #{roleZh} FROM dual) t
+    </insert>
+
+    <delete id="deleteRoleByUserId">
+        DELETE FROM p_user_role where userId=#{userId}
+    </delete>
+
+    <insert id="addRolesForUser">
+        INSERT INTO p_user_role(id,userId,roleId)
+        SELECT MENU_ROLE_SEQUENCE.NEXTVAL,t.* FROM (
+        <foreach collection="roleIds" separator="union all" item="roleId">
+            SELECT
+            #{userId},#{roleId}
+            FROM dual
+        </foreach>
+        ) t
+    </insert>
+
+    <resultMap id="eagerLoad" type="org.admin.model.IdsUser">
+        <id column="userId" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="enabled" property="enabled"/>
+        <result column="password" property="password"/>
+        <collection property="roles" ofType="org.admin.model.IdsRole">
+            <id column="roleId" property="id" />
+            <result column="rolename" property="name" />
+            <result column="rolenameZh" property="nameZh" />
+        </collection>
+    </resultMap>
+
+    <select id="getUserById" resultMap="eagerLoad">
+        select u.*, r.id AS roleId, r.name AS rolename, r.nameZh AS rolenameZh
+          from ((p_user u left join p_user_role ur on((u.id = ur.userid))) left join p_role r
+                on((ur.roleid = r.id)))
+         where u.userid = #{userId}
+    </select>
+
+    <select id="getUserByKeywords" resultMap="eagerLoad">
+        SELECT u.*, r.id AS roleid, r.name AS rolename, r.nameZh AS rolenameZh
+        FROM ((p_user u LEFT JOIN p_user_role ur ON((u.userid = ur.userid))) LEFT JOIN
+        p_role r ON((ur.roleid = r.id)))
+        <if test="keywords!='all' and keywords!=''">
+            <bind name="keywords" value="'%' + keywords + '%'" />
+            where u.username like #{keywords}
+        </if>
+         order by u.userid
+    </select>
+
+    <delete id="deleteMenuByRoleId" parameterType="long">
+        DELETE FROM p_menu_role WHERE roleId=#{roleId}
+    </delete>
+    <insert id="addMenuRole">
+        insert into p_menu_role(id,menuId,roleId)
+        SELECT MENU_ROLE_SEQUENCE.NEXTVAL,t.* FROM (
+        <foreach collection="menuIds" item="menuId" separator="union all">
+            SELECT
+            #{menuId},#{roleId}
+            FROM dual
+        </foreach>
+        ) t
+    </insert>
+
+    <insert id="createUser" parameterType="org.admin.model.IdsUser">
+        INSERT INTO p_user(ID,USERID, USERNAME,ENABLED,PASSWORD)
+          SELECT MENU_ROLE_SEQUENCE.NEXTVAL, t.*
+            FROM (SELECT #{userId}, #{username}, #{enabled}, #{password} FROM dual) t
+    </insert>
+
+    <delete id="deleteUser">
+        DELETE FROM p_user where userId=#{userId}
+    </delete>
+
+</mapper>

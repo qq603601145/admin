@@ -1,0 +1,2 @@
+select h.*,r.id AS rid,r.name AS rname,r.nameZh AS rnameZh from ((hr h left join hr_role
+        h_r on ((h.id = h_r.hrid))) left join role r on ((h_r.rid = r.id))) where h.id=#{hrId}
